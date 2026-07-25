@@ -1,0 +1,8 @@
+.env
+storage/clyp.sqlite
+storage/uploads/*
+!storage/uploads/.gitkeep
+storage/exports/*
+!storage/exports/.gitkeep
+storage/tmp/*
+!storage/tmp/.gitkeep

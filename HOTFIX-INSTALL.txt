@@ -1,0 +1,8 @@
+CLYP AUTO-EDITOR DATABASE HOTFIX V2
+
+1. Stop Clyp with Ctrl+C.
+2. Copy this ZIP's contents into the Clyp project root and replace files.
+3. Run: .\repair-auto-editor.bat
+4. Run: .\start.bat
+
+This repair does not delete storage\clyp.sqlite, uploads, projects, or exports.

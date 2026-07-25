@@ -1,0 +1,7 @@
+upload_max_filesize = 520M
+post_max_size = 530M
+max_execution_time = 0
+max_input_time = 3600
+memory_limit = 512M
+session.cookie_httponly = 1
+session.cookie_samesite = Lax
