@@ -59,7 +59,7 @@ def main() -> None:
     if any(proc.poll() is not None for proc in procs):
         stop()
 
-    print("\nClyp Design Studio V4 is running:")
+    print("\nClyp is running (Design Studio + Video Editor):")
     print(f"Web:      {app_url}")
     print(f"AI:       {ai_url.rstrip('/')}/health")
     print("Storage:  Designs in browser storage, videos in storage/video")

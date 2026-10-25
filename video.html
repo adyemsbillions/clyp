@@ -59,6 +59,18 @@
         </div>
         <label class="switch-row"><input type="checkbox" id="capHighlight"> <span id="capHighlightLabel">Highlight words</span></label>
         <label class="colour-row"><span id="capColorLabel">Highlight colour</span><input type="color" id="capColor"></label>
+        <div class="effect-box" id="effectBox">
+          <div class="field-label">Text effect</div>
+          <div class="segmented" id="capEffect" role="radiogroup" aria-label="Text effect">
+            <button type="button" data-effect="shadow" role="radio">Soft shadow</button>
+            <button type="button" data-effect="glow" role="radio">Glow</button>
+            <button type="button" data-effect="none" role="radio">None</button>
+          </div>
+          <div class="glow-fields" id="glowFields">
+            <label class="colour-row"><span>Glow colour</span><input type="color" id="glowColor"></label>
+            <label>Glow strength <output id="glowStrengthOut"></output><input type="range" id="glowStrength" min="0" max="100"></label>
+          </div>
+        </div>
         <p class="hint" id="capHint"></p>
         <div class="panel-heading lines-heading"><span>Lines</span><button class="text-btn" id="addCaption" type="button">+ Add at playhead</button></div>
         <div class="caption-list" id="captionList"></div>
@@ -76,10 +88,20 @@
       </section>
 
       <section data-section="colour" hidden>
-        <div class="panel-heading"><span>Colour grade</span><small>Presets + fine-tuning</small></div>
+        <div class="panel-heading"><span>Colour grade</span><small>Automatic, then your look</small></div>
+        <div class="auto-card">
+          <label class="switch-row"><input type="checkbox" id="gradeAuto"> <b>Auto-correct</b></label>
+          <p class="hint">Clyp analysed this video's exposure, contrast, colour and white balance and fixed them for you.</p>
+          <ul class="auto-summary" id="autoSummary"></ul>
+        </div>
+        <div class="field-label">Look</div>
         <div class="preset-grid" id="gradePresets"></div>
-        <div class="slider-stack" id="gradeSliders"></div>
-        <div class="inline-fields"><button class="button ghost small" id="gradeReset" type="button">Reset sliders</button></div>
+        <label>Look strength <output id="strengthOut"></output><input type="range" id="gradeStrength" min="0" max="150" step="5"></label>
+        <details class="fine-tune">
+          <summary>Fine-tune</summary>
+          <div class="slider-stack" id="gradeSliders"></div>
+          <div class="inline-fields"><button class="button ghost small" id="gradeReset" type="button">Reset sliders</button></div>
+        </details>
         <p class="hint">The player shows a fast live preview. Use <b>Check exact frame</b> to see a frame exactly as it will export.</p>
       </section>
     </div>

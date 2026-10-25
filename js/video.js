@@ -38,7 +38,7 @@ function uploadVideo(file){
   const form=new FormData();form.append('video',file);
   const xhr=new XMLHttpRequest();
   xhr.open('POST','/api/video/projects');
-  xhr.upload.onprogress=e=>{if(e.lengthComputable){const p=e.loaded/e.total;bar.style.width=`${p*100}%`;text.textContent=p<1?`Uploading… ${Math.round(p*100)}%`:'Reading video…'}};
+  xhr.upload.onprogress=e=>{if(e.lengthComputable){const p=e.loaded/e.total;bar.style.width=`${p*100}%`;text.textContent=p<1?`Uploading… ${Math.round(p*100)}%`:'Analysing colour…'}};
   xhr.onload=()=>{let data={};try{data=JSON.parse(xhr.responseText)}catch{}if(xhr.status<300&&data.ok){location.href=`video.html?id=${encodeURIComponent(data.project.id)}`}else{box.hidden=true;showToast(data.message||'Upload failed',6000)}};
   xhr.onerror=()=>{box.hidden=true;showToast('Upload failed — is Clyp still running?',6000)};
   xhr.send(form);
@@ -155,6 +155,10 @@ function buildCaptionControls(){
   $('capColorLabel').textContent=build?'Key word colour':'Highlight colour';
   $('capHint').innerHTML=build?'Words appear one at a time as they are spoken. Wrap a word in <b>*asterisks*</b> to make it the key word; Clyp picks one automatically when a line has none.':'The whole line shows at once and each word fills with the highlight colour as it is spoken.';
   $('resplitBtn').disabled=!project.has_transcript;
+  $('effectBox').hidden=!build;
+  document.querySelectorAll('#capEffect [data-effect]').forEach(b=>b.setAttribute('aria-checked',String(b.dataset.effect===s.effect)));
+  $('glowFields').hidden=s.effect!=='glow';
+  $('glowColor').value=s.glow_color.toLowerCase();$('glowStrength').value=s.glow_strength;$('glowStrengthOut').textContent=`${s.glow_strength}%`;
 }
 $('capStyles').addEventListener('click',e=>{const key=e.target.closest('[data-style]')?.dataset.style;if(!key)return;project.caption_style.preset=key;project.caption_style.highlight_color=OPTIONS.caption_styles[key].highlight;buildCaptionControls();renderOverlay(true);scheduleSave()});
 $('capEnabled').onchange=()=>{project.caption_style.enabled=$('capEnabled').checked;renderOverlay(true);scheduleSave()};
@@ -163,6 +167,9 @@ $('capPosition').onchange=()=>{project.caption_style.position=$('capPosition').v
 $('capSize').oninput=()=>{project.caption_style.size=Number($('capSize').value);$('capSizeOut').textContent=`${$('capSize').value}%`;renderOverlay(true);scheduleSave()};
 $('capHighlight').onchange=()=>{project.caption_style.highlight=$('capHighlight').checked;renderOverlay(true);scheduleSave()};
 $('capColor').oninput=()=>{project.caption_style.highlight_color=$('capColor').value.toUpperCase();renderOverlay(true);scheduleSave()};
+$('capEffect').addEventListener('click',e=>{const effect=e.target.closest('[data-effect]')?.dataset.effect;if(!effect)return;project.caption_style.effect=effect;buildCaptionControls();renderOverlay(true);scheduleSave()});
+$('glowColor').oninput=()=>{project.caption_style.glow_color=$('glowColor').value.toUpperCase();renderOverlay(true);scheduleSave()};
+$('glowStrength').oninput=()=>{project.caption_style.glow_strength=Number($('glowStrength').value);$('glowStrengthOut').textContent=`${$('glowStrength').value}%`;renderOverlay(true);scheduleSave()};
 
 $('transcribeBtn').onclick=async()=>{
   const btn=$('transcribeBtn');
@@ -229,7 +236,8 @@ function renderOverlay(force=false){
     Object.assign(el.style,{inset:'0',padding:`${marginY}px ${marginX}px`,justifyContent:{bottom:'flex-end',middle:'center',top:'flex-start'}[s.position],alignItems:build?'flex-start':'center',textAlign:build?'left':'center'});
     const size=style.size*scale*k;
     let css=`font-family:${family};font-weight:${weight};font-size:${size}px;line-height:1.18;letter-spacing:${(style.spacing||0)*scale*k}px;color:${build?style.base:style.base};`;
-    if(build)css+=`text-shadow:0 0 ${Math.max(2,7*scale)*k*1.4}px rgba(0,0,0,.6);`;
+    if(build&&s.effect==='shadow')css+=`text-shadow:0 0 ${Math.max(2,7*scale)*k*1.4}px rgba(0,0,0,.6);`;
+    else if(build&&s.effect==='glow'){const g=s.glow_strength/100;css+=`text-shadow:0 0 ${(3+5*g)*scale*k*1.6}px ${rgba(s.glow_color,0.6+0.4*g)},0 0 ${(10+18*g)*scale*k*1.6}px ${rgba(s.glow_color,0.35+0.45*g)},0 0 ${(1+2*g)*scale*k*2}px ${rgba(s.glow_color,0.6+0.4*g)};`}
     else{
       if(style.box)css+=`background:${rgba(style.back,style.back_alpha)};padding:.08em .3em;box-decoration-break:clone;-webkit-box-decoration-break:clone;border-radius:.12em;`;
       else css+=`-webkit-text-stroke:${style.outline_size*scale*k*2}px ${style.outline};paint-order:stroke fill;text-shadow:${style.shadow*scale*k}px ${style.shadow*scale*k}px 0 ${rgba(style.back,style.back_alpha)};`;
@@ -295,36 +303,64 @@ function syncMusic(play){
 }
 
 // ---------------------------------------------------------------------------
-// Colour grading
+// Colour grading: automatic correction + look x strength + fine-tune sliders.
+// The preview approximates grade_filters() in video_service.py with one colour matrix.
 // ---------------------------------------------------------------------------
-const SLIDERS={brightness:'Brightness',contrast:'Contrast',saturation:'Saturation',temperature:'Temperature',tint:'Tint',vignette:'Vignette'};
-// Rough browser equivalents of each preset's extra FFmpeg filter (gain, offset per channel).
-const PREVIEW_EXTRA={cinematic:{gain:[1,1,1],offset:[-0.015,0,0.02]},vintage:{gain:[0.88,0.88,0.76],offset:[0.08,0.06,0.1]}};
-function gradeValues(grade){const base=OPTIONS.grade_presets[grade.preset]?.values||{};const v={};for(const key of OPTIONS.grade_keys)v[key]=clamp((base[key]||0)+(Number(grade[key])||0),key==='vignette'?0:-100,100);return v}
-function gradeMatrix(v,preset){
+const SLIDERS={brightness:'Brightness',contrast:'Contrast',saturation:'Saturation',temperature:'Temperature',tint:'Tint',vignette:'Vignette',grain:'Film grain'};
+const ZERO_FROM=new Set(['vignette','grain']);
+function gradeValues(grade){
+  const look=OPTIONS.grade_presets[grade.preset]?.values||{},strength=(grade.strength??100)/100;
+  const auto=grade.auto?(project.analysis?.values||{}):{};
+  const v={};
+  for(const key of OPTIONS.grade_keys)v[key]=clamp(Math.round((auto[key]||0)+(look[key]||0)*strength+(Number(grade[key])||0)),ZERO_FROM.has(key)?0:-100,100);
+  return v;
+}
+function gradeMatrix(grade){
+  const v=gradeValues(grade),look=OPTIONS.grade_presets[grade.preset]||{},strength=(grade.strength??100)/100;
   const b=v.brightness/100*0.2,c=1+v.contrast/100*0.6,s=Math.max(0,1+v.saturation/100),t=v.temperature/100,n=v.tint/100;
-  const lw=[0.2126,0.7152,0.0722];
-  const extra=PREVIEW_EXTRA[preset]||{gain:[1,1,1],offset:[0,0,0]};
+  const bal=look.balance||{},fade=(look.fade||0)*strength;
+  // colorbalance: shadows/midtones shift the channel, highlights scale it.
+  const offset=['r','g','b'].map(ch=>((bal[ch+'s']||0)*0.5+(bal[ch+'m']||0)*0.5)*strength);
+  const gain=['r','g','b'].map(ch=>1+(bal[ch+'h']||0)*0.6*strength);
   const temp=[0.09*t,-0.06*n,-0.09*t];
-  const rows=[0,1,2].map(r=>{const row=lw.map((w,col)=>((1-s)*w+(col===r?s:0))*c*extra.gain[r]);return [...row,0,0.5*(1-c)+b+temp[r]+extra.offset[r]]});
+  const lw=[0.2126,0.7152,0.0722];
+  const rows=[0,1,2].map(r=>{
+    const g=gain[r]*(1-fade);
+    const row=lw.map((w,col)=>((1-s)*w+(col===r?s:0))*c*g);
+    return [...row,0,(0.5*(1-c)+b+temp[r]+offset[r])*(1-fade)+fade];
+  });
   return [...rows.flat(),0,0,0,1,0].map(x=>+x.toFixed(4)).join(' ');
 }
-function filterDef(id,v,preset){return `<filter id="${id}" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="${gradeMatrix(v,preset)}"/></filter>`}
 function vignetteCss(v){return v.vignette?`radial-gradient(ellipse at center,transparent ${55-v.vignette*0.2}%,rgba(0,0,0,${(v.vignette/100*0.75).toFixed(3)}) 100%)`:'none'}
+function lookGrade(key){return {...project.grade,preset:key}}
 function buildGradeControls(){
   const presets=OPTIONS.grade_presets,thumb=`/api/video/projects/${project.id}/thumb`;
-  $('gradePresets').innerHTML=OPTIONS.grade_order.map(key=>[key,presets[key]]).map(([key,p])=>{const v=gradeValues({preset:key});return `<button type="button" class="preset${key===project.grade.preset?' selected':''}" data-preset="${key}"><span class="swatch" style="background-image:url('${thumb}');filter:url(#grade-${key})"><span style="display:block;width:100%;height:100%;background:${vignetteCss(v)}"></span></span>${esc(p.label)}</button>`}).join('');
-  $('gradeSliders').innerHTML=Object.entries(SLIDERS).map(([key,label])=>`<label>${label} <output id="out-${key}">${project.grade[key]}</output><input type="range" data-grade="${key}" min="${key==='vignette'?0:-100}" max="100" value="${project.grade[key]}"></label>`).join('');
-  $('gradeDefs').innerHTML=Object.keys(presets).map(key=>filterDef(`grade-${key}`,gradeValues({preset:key}),key)).join('')+'<filter id="grade-live" color-interpolation-filters="sRGB"><feColorMatrix id="liveMatrix" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0"/></filter>';
+  $('gradeAuto').checked=!!project.grade.auto;
+  $('autoSummary').innerHTML=(project.analysis?.summary||[]).map(line=>`<li>${esc(line)}</li>`).join('');
+  $('gradeStrength').value=project.grade.strength;$('strengthOut').textContent=`${project.grade.strength}%`;
+  $('gradePresets').innerHTML=OPTIONS.grade_order.map(key=>`<button type="button" class="preset${key===project.grade.preset?' selected':''}" data-preset="${key}"><span class="swatch" style="background-image:url('${thumb}');filter:url(#grade-${key})"><span class="swatch-vignette" data-vignette="${key}" style="display:block;width:100%;height:100%"></span></span>${esc(presets[key].label)}</button>`).join('');
+  $('gradeSliders').innerHTML=Object.entries(SLIDERS).map(([key,label])=>`<label>${label} <output id="out-${key}">${project.grade[key]}</output><input type="range" data-grade="${key}" min="${ZERO_FROM.has(key)?0:-100}" max="100" value="${project.grade[key]}"></label>`).join('');
+  $('gradeDefs').innerHTML=OPTIONS.grade_order.map(key=>`<filter id="grade-${key}" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values=""/></filter>`).join('')+'<filter id="grade-live" color-interpolation-filters="sRGB"><feColorMatrix id="liveMatrix" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0"/></filter>';
+  updateSwatches();
+}
+// Swatches show each look on this video as it would actually come out (auto + strength + sliders).
+function updateSwatches(){
+  for(const key of OPTIONS.grade_order){
+    const g=lookGrade(key);
+    document.querySelector(`#grade-${key} feColorMatrix`)?.setAttribute('values',gradeMatrix(g));
+    const vig=document.querySelector(`[data-vignette="${key}"]`);if(vig)vig.style.background=vignetteCss(gradeValues(g));
+  }
 }
 function applyGrade(){
-  const v=gradeValues(project.grade);
-  $('liveMatrix').setAttribute('values',gradeMatrix(v,project.grade.preset));
+  $('liveMatrix').setAttribute('values',gradeMatrix(project.grade));
   player.style.filter='url(#grade-live)';
-  $('vignette').style.background=vignetteCss(v);
+  $('vignette').style.background=vignetteCss(gradeValues(project.grade));
 }
-$('gradePresets').addEventListener('click',e=>{const key=e.target.closest('[data-preset]')?.dataset.preset;if(!key)return;project.grade.preset=key;document.querySelectorAll('.preset').forEach(b=>b.classList.toggle('selected',b.dataset.preset===key));applyGrade();hideExact();scheduleSave()});
-$('gradeSliders').addEventListener('input',e=>{const key=e.target.dataset.grade;if(!key)return;project.grade[key]=Number(e.target.value);$(`out-${key}`).textContent=e.target.value;applyGrade();hideExact();scheduleSave()});
+function gradeChanged(swatches=false){if(swatches)updateSwatches();applyGrade();hideExact();scheduleSave()}
+$('gradeAuto').onchange=()=>{project.grade.auto=$('gradeAuto').checked;gradeChanged(true)};
+$('gradeStrength').oninput=()=>{project.grade.strength=Number($('gradeStrength').value);$('strengthOut').textContent=`${$('gradeStrength').value}%`;gradeChanged(true)};
+$('gradePresets').addEventListener('click',e=>{const key=e.target.closest('[data-preset]')?.dataset.preset;if(!key)return;project.grade.preset=key;document.querySelectorAll('.preset').forEach(b=>b.classList.toggle('selected',b.dataset.preset===key));gradeChanged()});
+$('gradeSliders').addEventListener('input',e=>{const key=e.target.dataset.grade;if(!key)return;project.grade[key]=Number(e.target.value);$(`out-${key}`).textContent=e.target.value;gradeChanged(true)});
 $('gradeReset').onclick=()=>{for(const key of OPTIONS.grade_keys)project.grade[key]=0;buildGradeControls();applyGrade();scheduleSave()};
 
 // Exact frame from FFmpeg

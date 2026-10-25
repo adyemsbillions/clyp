@@ -56,18 +56,38 @@ CAPTION_STYLES: dict[str, dict[str, Any]] = {
     "comedy": {"kind": "karaoke", "align": "center", "label": "Comedy", "font": "Arial Black", "size": 66, "base": "#FFFFFF", "highlight": "#FFF765", "outline": "#370B42", "outline_size": 5, "box": False, "back": "#000000", "back_alpha": 0.68, "shadow": 3, "upper": True},
 }
 
-GRADE_KEYS = ("brightness", "contrast", "saturation", "temperature", "tint", "vignette")
+GRADE_KEYS = ("brightness", "contrast", "saturation", "temperature", "tint", "vignette", "grain")
 
-# Preset values use the same -100..100 scale as the sliders; the user's sliders add on top.
+# Looks are applied on top of the automatic correction and scaled by the look strength.
+# values use the -100..100 slider scale; balance is FFmpeg colorbalance (s/m/h = shadows,
+# midtones, highlights); fade lifts the blacks (0..0.15) for a matte/film finish.
 GRADE_PRESETS: dict[str, dict[str, Any]] = {
-    "none": {"label": "Original", "values": {}, "extra": ""},
-    "vivid": {"label": "Vivid", "values": {"contrast": 14, "saturation": 32}, "extra": ""},
-    "warm": {"label": "Warm", "values": {"temperature": 38, "saturation": 8, "contrast": 6}, "extra": ""},
-    "cool": {"label": "Cool", "values": {"temperature": -36, "contrast": 6, "saturation": -4}, "extra": ""},
-    "cinematic": {"label": "Cinematic", "values": {"contrast": 20, "saturation": -14, "brightness": -4, "vignette": 35}, "extra": "colorbalance=rs=-0.07:gs=-0.01:bs=0.09:rh=0.07:gh=0.01:bh=-0.07"},
-    "vintage": {"label": "Vintage", "values": {"saturation": -28, "temperature": 22, "contrast": -8, "vignette": 30}, "extra": "curves=r='0/0.08 1/0.96':g='0/0.06 1/0.94':b='0/0.10 1/0.86'"},
-    "moody": {"label": "Moody", "values": {"brightness": -8, "contrast": 18, "saturation": -32, "temperature": -12, "vignette": 45}, "extra": ""},
-    "bw": {"label": "Black & white", "values": {"saturation": -100, "contrast": 22}, "extra": ""},
+    "none": {"label": "Original", "values": {}},
+    "pro": {"label": "Clyp Pro", "values": {"contrast": 12, "saturation": 8, "temperature": 6, "vignette": 18},
+            "balance": {"rs": -0.03, "bs": 0.04, "rh": 0.03, "bh": -0.03}},
+    "teal_orange": {"label": "Teal & Orange", "values": {"contrast": 18, "saturation": 6, "vignette": 25},
+                    "balance": {"rs": -0.08, "bs": 0.1, "rh": 0.08, "bh": -0.08}},
+    "golden": {"label": "Golden Hour", "values": {"temperature": 38, "saturation": 14, "contrast": 8, "vignette": 20},
+               "balance": {"rh": 0.05, "gh": 0.02, "bh": -0.06}},
+    "clean": {"label": "Clean & Bright", "values": {"brightness": 7, "contrast": 6, "saturation": 10, "temperature": 4}},
+    "portrait": {"label": "Skin Glow", "values": {"brightness": 4, "contrast": 4, "saturation": 4, "temperature": 12, "vignette": 15},
+                 "balance": {"rm": 0.02, "gm": -0.01, "rh": 0.03}},
+    "film": {"label": "Film", "values": {"contrast": 12, "saturation": -10, "vignette": 25, "grain": 35}, "fade": 0.06,
+             "balance": {"rm": 0.02, "bs": 0.03, "bh": -0.02}},
+    "cinematic": {"label": "Cinematic", "values": {"contrast": 20, "saturation": -14, "brightness": -4, "vignette": 35},
+                  "balance": {"rs": -0.07, "gs": -0.01, "bs": 0.09, "rh": 0.07, "gh": 0.01, "bh": -0.07}},
+    "matte": {"label": "Matte", "values": {"contrast": -6, "saturation": -12}, "fade": 0.1},
+    "moody": {"label": "Moody", "values": {"brightness": -8, "contrast": 22, "saturation": -30, "temperature": -10, "vignette": 45},
+              "balance": {"bs": 0.05}},
+    "night": {"label": "Night City", "values": {"contrast": 16, "saturation": 10, "temperature": -20, "vignette": 30},
+              "balance": {"bs": 0.08, "rh": 0.05}},
+    "vivid": {"label": "Vivid Pop", "values": {"contrast": 14, "saturation": 32}},
+    "warm": {"label": "Warm", "values": {"temperature": 38, "saturation": 8, "contrast": 6}},
+    "cool": {"label": "Cool", "values": {"temperature": -36, "contrast": 6, "saturation": -4}},
+    "vintage": {"label": "Vintage", "values": {"saturation": -28, "temperature": 22, "contrast": -8, "vignette": 30, "grain": 25},
+                "fade": 0.08, "balance": {"rh": 0.04, "bh": -0.08}},
+    "noir": {"label": "Noir", "values": {"saturation": -100, "contrast": 35, "vignette": 40, "grain": 20}},
+    "bw": {"label": "Black & white", "values": {"saturation": -100, "contrast": 22}},
 }
 
 
@@ -129,7 +149,14 @@ def load_project(pid: str) -> dict[str, Any]:
     path = project_dir(pid) / "project.json"
     if not path.is_file():
         raise KeyError(pid)
-    return json.loads(path.read_text(encoding="utf-8"))
+    project = json.loads(path.read_text(encoding="utf-8"))
+    # Projects saved by an older build may lack newer settings; fill them from the defaults.
+    # Their chosen look predates the strength control, so keep it at full strength.
+    if isinstance(project.get("grade"), dict) and "strength" not in project["grade"]:
+        project["grade"]["strength"] = 100
+    for section, defaults in default_settings().items():
+        project[section] = {**defaults, **(project.get(section) or {})}
+    return project
 
 
 def save_project(project: dict[str, Any]) -> None:
@@ -184,9 +211,10 @@ def even(value: int) -> int:
 
 def default_settings() -> dict[str, Any]:
     return {
-        "caption_style": {"enabled": True, "preset": "signature", "position": "bottom", "size": 100, "highlight": True, "highlight_color": CAPTION_STYLES["signature"]["highlight"], "words": 5},
+        "caption_style": {"enabled": True, "preset": "signature", "position": "bottom", "size": 100, "highlight": True, "highlight_color": CAPTION_STYLES["signature"]["highlight"], "words": 5,
+                          "effect": "shadow", "glow_color": "#FFFFFF", "glow_strength": 60},
         "sound": {"id": "", "volume": 0.25, "original_volume": 1.0, "start": 0.0, "duck": True},
-        "grade": {"preset": "none", **{key: 0 for key in GRADE_KEYS}},
+        "grade": {"auto": True, "preset": "pro", "strength": 70, **{key: 0 for key in GRADE_KEYS}},
     }
 
 
@@ -231,6 +259,10 @@ def apply_settings(project: dict[str, Any], data: dict[str, Any]) -> None:
         current["enabled"] = bool(style.get("enabled", current["enabled"]))
         current["highlight"] = bool(style.get("highlight", current["highlight"]))
         current["highlight_color"] = safe_hex(style.get("highlight_color"), current["highlight_color"])
+        effect = str(style.get("effect", current["effect"]))
+        current["effect"] = effect if effect in {"shadow", "glow", "none"} else current["effect"]
+        current["glow_color"] = safe_hex(style.get("glow_color"), current["glow_color"])
+        current["glow_strength"] = int(clamp(style.get("glow_strength", current["glow_strength"]), 0, 100, 60))
 
     sound = data.get("sound")
     if isinstance(sound, dict):
@@ -247,8 +279,10 @@ def apply_settings(project: dict[str, Any], data: dict[str, Any]) -> None:
         current = project["grade"]
         preset = str(grade.get("preset", current["preset"]))
         current["preset"] = preset if preset in GRADE_PRESETS else current["preset"]
+        current["auto"] = bool(grade.get("auto", current["auto"]))
+        current["strength"] = int(clamp(grade.get("strength", current["strength"]), 0, 150, 70))
         for key in GRADE_KEYS:
-            low = 0 if key == "vignette" else -100
+            low = 0 if key in ("vignette", "grain") else -100
             current[key] = int(clamp(grade.get(key, current[key]), low, 100, 0))
 
 
@@ -395,18 +429,29 @@ def build_ass(project: dict[str, Any], captions: list[dict[str, Any]]) -> str:
             size = round(style["emphasis_scale"] * 100)
             emph = f"\\fn{style['emphasis_font']}\\fscx{size}\\fscy{size}"
             emph_colour = ass_colour(settings["highlight_color"])[2:] + "&"
-            blur = num(max(2.0, 7 * scale))
-            # Layer 0 is a blurred black copy acting as a soft drop shadow; layer 1 is the text.
-            for layer in (0, 1):
+            # Effect layers sit under the text. Each is (tags, alpha override, opacity); every
+            # word fades its layer in at the moment it is spoken.
+            effect = settings["effect"]
+            layers: list[tuple[str, str, float]] = []
+            if effect == "shadow":
+                # A blurred black copy of the text acts as a soft drop shadow.
+                layers.append((f"\\1c&H000000&\\bord0\\shad0\\blur{num(max(2.0, 7 * scale))}", "\\alpha", 0.6))
+            elif effect == "glow":
+                # Two blurred borders in the glow colour (wide halo + tight core); the fill stays clear.
+                g = settings["glow_strength"] / 100
+                colour = ass_colour(settings["glow_color"])[2:] + "&"
+                for bord, blur, opacity in ((3 + 6 * g, 10 + 18 * g, 0.35 + 0.45 * g), (1 + 2 * g, 3 + 5 * g, 0.6 + 0.4 * g)):
+                    layers.append((f"\\1a&HFF&\\3c&H{colour}\\bord{num(bord * scale)}\\blur{num(blur * scale)}\\shad0", "\\3a", opacity))
+            layers.append(("", "\\alpha", 1.0))
+            for layer, (effect_tags, alpha_tag, opacity) in enumerate(layers):
+                is_text = layer == len(layers) - 1
+                visible = f"&H{round((1 - opacity) * 255):02X}&"
                 parts, at_ms = [], 0
                 for (word, emphasised), share in zip(words, shares):
                     tags = "\\r"
                     if emphasised and highlight:
-                        tags += emph + ("" if layer == 0 else f"\\1c&H{emph_colour}")
-                    if layer == 0:
-                        tags += f"\\1c&H000000&\\bord0\\shad0\\blur{blur}"
-                    visible = "&H66&" if layer == 0 else "&H00&"
-                    tags += f"\\alpha&HFF&\\t({at_ms},{at_ms + 70},\\alpha{visible})"
+                        tags += emph + (f"\\1c&H{emph_colour}" if is_text else "")
+                    tags += effect_tags + f"{alpha_tag}&HFF&\\t({at_ms},{at_ms + 70},{alpha_tag}{visible})"
                     parts.append(f"{{{tags}}}{word}")
                     at_ms += share * 10
                 lines.append(f"Dialogue: {layer},{ass_time(start)},{ass_time(end)},Caption,,0,0,0,,{' '.join(parts)}")
@@ -492,34 +537,125 @@ def ai_post(route: str, payload: dict[str, Any], timeout: int = 300) -> dict[str
 # Colour grading
 # ---------------------------------------------------------------------------
 
-def grade_values(grade: dict[str, Any]) -> dict[str, int]:
-    preset = GRADE_PRESETS.get(grade.get("preset"), GRADE_PRESETS["none"])["values"]
+def analyse_video(project: dict[str, Any]) -> dict[str, Any]:
+    """Sample frames with FFmpeg signalstats and work out an automatic correction.
+
+    Returns slider-scale corrections for exposure, contrast, saturation and white balance,
+    plus a plain-language summary for the editor.
+    """
+    pdir = project_dir(project["id"])
+    duration = max(0.1, project["duration"])
+    samples = 10 if duration > 3 else 4
+    keys = ("YAVG", "YLOW", "YHIGH", "SATAVG", "UAVG", "VAVG")
+    stats: dict[str, list[float]] = {k: [] for k in keys}
+    for index in range(samples):
+        at = duration * (index + 0.5) / samples
+        try:
+            result = run([ffmpeg_bin(), "-hide_banner", "-loglevel", "error", "-ss", num(at), "-i", project["source"], "-frames:v", "1",
+                          "-vf", "scale=160:-2,signalstats,metadata=print:file=-", "-f", "null", "-"], timeout=60, cwd=pdir)
+        except Exception:
+            continue
+        for line in result.stdout.decode("utf-8", "replace").splitlines():
+            key, _, value = line.strip().rpartition("=")
+            name = key.rsplit(".", 1)[-1]
+            if name in stats:
+                try:
+                    stats[name].append(float(value))
+                except ValueError:
+                    pass
+    if not stats["YAVG"]:
+        return {"values": {}, "summary": ["Couldn't analyse this video, so no automatic correction is applied."], "stats": {}}
+
+    def median(values: list[float]) -> float:
+        ordered = sorted(values)
+        return ordered[len(ordered) // 2]
+
+    m = {k: median(v) for k, v in stats.items() if v}
+    values: dict[str, int] = {}
+    summary: list[str] = []
+    # Exposure: aim the average luma at a comfortable mid-grey (8-bit limited range).
+    exposure = clamp((118 - m["YAVG"]) / 255 / 0.2 * 100 * 0.7, -35, 35, 0)
+    if abs(exposure) >= 3:
+        values["brightness"] = round(exposure)
+        summary.append("Brightened the footage" if exposure > 0 else "Brought down bright footage")
+    # Contrast: stretch a flat image towards a healthy tonal range, leave punchy footage alone.
+    spread = max(20.0, m.get("YHIGH", 200) - m.get("YLOW", 40))
+    contrast = clamp((150 / spread - 1) / 0.6 * 100 * 0.6, -15, 35, 0)
+    if abs(contrast) >= 3:
+        values["contrast"] = round(contrast)
+        summary.append("Added depth to flat footage" if contrast > 0 else "Softened harsh contrast")
+    # Saturation: lift dull colour, calm oversaturated colour; skip black-and-white footage.
+    sat = m.get("SATAVG", 40)
+    if sat > 6:
+        saturation = clamp((42 / sat - 1) * 100 * 0.5, -25, 30, 0)
+        if abs(saturation) >= 3:
+            values["saturation"] = round(saturation)
+            summary.append("Richer colour" if saturation > 0 else "Calmed oversaturated colour")
+    # White balance: U>128 is a blue cast, V>128 red; both low is a green cast. Correct ~60%
+    # so warm, intentional scenes are not flattened to grey.
+    du, dv = m.get("UAVG", 128) - 128, m.get("VAVG", 128) - 128
+    temperature = clamp(-(dv - du) * 3, -35, 35, 0)
+    tint = clamp(-(du + dv) * 3, -30, 30, 0)
+    if abs(temperature) >= 4:
+        values["temperature"] = round(temperature)
+        summary.append("Warmed a cold colour cast" if temperature > 0 else "Cooled an orange colour cast")
+    if abs(tint) >= 4:
+        values["tint"] = round(tint)
+        summary.append("Removed a green tint" if tint > 0 else "Removed a magenta tint")
+    if not summary:
+        summary.append("Exposure and colour already look balanced")
+    return {"values": values, "summary": summary, "stats": {k: round(v, 1) for k, v in m.items()}}
+
+
+def ensure_analysis(pid: str) -> dict[str, Any]:
+    project = load_project(pid)
+    if project.get("analysis"):
+        return project
+    analysis = analyse_video(project)
+    with _lock:
+        project = load_project(pid)
+        project["analysis"] = analysis
+        save_project(project)
+    return project
+
+
+def grade_values(grade: dict[str, Any], analysis: dict[str, Any] | None = None) -> dict[str, int]:
+    """Final slider-scale values: automatic correction + look x strength + the user's sliders."""
+    look = GRADE_PRESETS.get(grade.get("preset"), GRADE_PRESETS["none"])["values"]
+    strength = int(grade.get("strength", 100)) / 100
+    auto = (analysis or {}).get("values", {}) if grade.get("auto") else {}
     out = {}
     for key in GRADE_KEYS:
-        low = 0 if key == "vignette" else -100
-        out[key] = int(clamp(preset.get(key, 0) + int(grade.get(key) or 0), low, 100, 0))
+        low = 0 if key in ("vignette", "grain") else -100
+        out[key] = int(clamp(auto.get(key, 0) + look.get(key, 0) * strength + int(grade.get(key) or 0), low, 100, 0))
     return out
 
 
-def grade_filters(grade: dict[str, Any]) -> list[str]:
-    v = grade_values(grade)
+def grade_filters(grade: dict[str, Any], analysis: dict[str, Any] | None = None) -> list[str]:
+    v = grade_values(grade, analysis)
+    look = GRADE_PRESETS.get(grade.get("preset"), GRADE_PRESETS["none"])
+    strength = int(grade.get("strength", 100)) / 100
     filters = []
-    extra = GRADE_PRESETS.get(grade.get("preset"), GRADE_PRESETS["none"])["extra"]
-    if extra:
-        filters.append(extra)
+    balance = {k: val * strength for k, val in (look.get("balance") or {}).items()}
+    t, n = v["temperature"] / 100, v["tint"] / 100
+    for key, extra in (("rm", 0.18 * t), ("bm", -0.18 * t), ("rh", 0.1 * t), ("bh", -0.1 * t), ("gm", -0.12 * n)):
+        balance[key] = balance.get(key, 0) + extra
+    balance = {k: clamp(val, -1, 1, 0) for k, val in balance.items() if abs(val) >= 0.001}
+    if balance:
+        filters.append("colorbalance=" + ":".join(f"{k}={num(val)}" for k, val in sorted(balance.items())))
     if v["brightness"] or v["contrast"] or v["saturation"]:
         filters.append(
             f"eq=brightness={num(v['brightness'] / 100 * 0.2)}"
             f":contrast={num(1 + v['contrast'] / 100 * 0.6)}"
             f":saturation={num(max(0.0, 1 + v['saturation'] / 100))}"
         )
-    if v["temperature"] or v["tint"]:
-        t, n = v["temperature"] / 100, v["tint"] / 100
-        filters.append(
-            f"colorbalance=rm={num(0.18 * t)}:bm={num(-0.18 * t)}:rh={num(0.1 * t)}:bh={num(-0.1 * t)}:gm={num(-0.12 * n)}"
-        )
+    fade = float(look.get("fade") or 0) * strength
+    if fade >= 0.005:
+        filters.append(f"colorlevels=romin={num(fade)}:gomin={num(fade)}:bomin={num(fade)}")
     if v["vignette"]:
         filters.append(f"vignette=angle={num(0.15 + 0.65 * v['vignette'] / 100)}")
+    if v["grain"]:
+        filters.append(f"noise=alls={round(v['grain'] * 0.22)}:allf=t")
     return filters
 
 
@@ -571,7 +707,7 @@ def list_sounds() -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 def video_chain(project: dict[str, Any], ass_name: str | None) -> list[str]:
-    chain = grade_filters(project["grade"])
+    chain = grade_filters(project["grade"], project.get("analysis"))
     chain.append("scale=trunc(iw/2)*2:trunc(ih/2)*2")
     if ass_name:
         chain.append(f"ass={ass_name}")
@@ -631,7 +767,7 @@ def build_render_args(project: dict[str, Any], pdir: Path, output: Path) -> list
 
 def render_worker(pid: str) -> None:
     try:
-        project = load_project(pid)
+        project = ensure_analysis(pid)
         pdir = project_dir(pid)
         exports = pdir / "exports"
         exports.mkdir(exist_ok=True)
@@ -733,6 +869,7 @@ def projects_create():
                  "-frames:v", "1", "-vf", "scale=360:-2", str(pdir / "thumb.jpg")], timeout=60, cwd=pdir)
         except Exception:
             pass  # a missing thumbnail only affects the library card
+        project = ensure_analysis(pid)
     except Exception as exc:
         shutil.rmtree(pdir, ignore_errors=True)
         return fail(str(exc), 422)
@@ -742,7 +879,7 @@ def projects_create():
 @video.get("/api/video/projects/<pid>")
 def projects_get(pid: str):
     try:
-        return jsonify({"ok": True, "project": public_project(load_project(pid))})
+        return jsonify({"ok": True, "project": public_project(ensure_analysis(pid))})
     except KeyError:
         return fail("Video project not found.", 404)
 
