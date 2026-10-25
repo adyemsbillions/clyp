@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Clyp Templates</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;750&family=League+Spartan:wght@850&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="app-body">
+<aside class="app-sidebar">
+  <a class="brand" href="index.html"><span class="brand-mark">C</span><span>Clyp</span></a>
+  <nav><a href="index.html"><span>⌂</span>Home</a><a href="app.html"><span>◇</span>Design</a><a class="selected" href="templates.html"><span>▦</span>Templates</a><a href="video.html"><span>▶</span>Video</a></nav>
+</aside>
+<main class="dashboard">
+  <div class="dash-header"><div><span class="kicker">TEMPLATES</span><h1>Start polished.</h1></div></div>
+  <div class="template-gallery" id="gallery" style="margin-top:30px"></div>
+</main>
+<script>
+// Mirrors templateMeta in js/editor.js: [name, background, text, accent, kicker, headline, details].
+const TEMPLATES={1:['Sunday Gathering','#1f2445','#ffffff','#f4c95d','THE GATHERING 2026','YOUTH\nCONFERENCE','24 AUG · 4:00 PM · LAGOS'],2:['Founder Meetup','#f0ede6','#171815','#ff5d3d','FOUNDERS MEETUP','BUILD\nWHAT\nMATTERS.','SATURDAY · 10AM · LAGOS'],3:['Night Session','#171815','#ffffff','#665cff','FRIDAY NIGHT','NIGHT\nSESSION','FRIDAY · 8PM'],4:['Open Day','#dfe7ff','#20368b','#20368b','DISCOVER YOUR NEXT STEP','OPEN\nDAY','LEARN · EXPLORE · DECIDE'],5:['Weekend Brunch','#f8d7c7','#6d2d24','#ff633f','SATURDAY + SUNDAY','BRUNCH\nTHIS\nWEEKEND','10AM — 3PM'],6:['Open House','#e9e2d6','#2f322e','#79806d','A SPACE TO COME HOME TO','OPEN\nHOUSE','IKOYI · SATURDAY'],7:['Weekend Sale','#f4f0ff','#3430a3','#ff5c62','CRAVII','WEEKEND\nSALE','UP TO 30% OFF'],8:['New Drop','#d9f0cc','#182016','#182016','LIMITED RELEASE','NEW\nDROP','AVAILABLE FRIDAY'],9:['Product Launch','#12141a','#eff1ff','#4e5dff','MEET THE NEW','INTRODUCING\nNOVA','BUILT FOR TEAMS'],10:['Lookbook','#f3e8e5','#331f1e','#a45d4b','NEW COLLECTION','FORM /\nFALL 26','THE NEW SILHOUETTE'],11:['Skin Session','#eee7dd','#50443a','#b18476','PERSONAL CONSULTATION','SKIN\nSESSION','BOOK YOUR SESSION'],12:['Now Hiring','#e9edf1','#18212c','#305a7c','COME BUILD WITH US','WE ARE\nHIRING','JOIN OUR TEAM']};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+document.getElementById('gallery').innerHTML=Object.entries(TEMPLATES).map(([id,[name,bg,ink,accent,kicker,headline,details]])=>`<a class="template-card" href="editor.html?template=${id}"><div class="template-preview" style="background:${bg};color:${ink}"><span style="position:absolute;top:0;right:0;width:22%;height:100%;background:${accent}"></span><small style="position:relative;font:750 9px Inter,sans-serif;letter-spacing:.16em">${esc(kicker)}</small><strong style="position:relative;font:850 32px/0.9 'League Spartan',sans-serif;white-space:pre-line">${esc(headline)}</strong><small style="position:relative;font:700 9px Inter,sans-serif;letter-spacing:.05em">${esc(details)}</small></div><div class="template-meta"><strong>${esc(name)}</strong><span>→</span></div></a>`).join('');
+</script>
+</body>
+</html>

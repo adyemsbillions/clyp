@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Clyp Editor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Barlow+Condensed:wght@400;500;600;700;800;900&family=Bebas+Neue&family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&family=Inter:wght@400;500;600;700;800;900&family=League+Spartan:wght@400;500;600;700;800;900&family=Libre+Baskerville:wght@400;700&family=Manrope:wght@400;500;600;700;800&family=Montserrat:wght@400;500;600;700;800;900&family=Oswald:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="editor-body">
+<header class="editor-topbar">
+  <a class="brand compact" href="app.html"><span class="brand-mark">C</span><span>Clyp</span></a>
+  <div class="project-title"><input id="projectName" value="Untitled design" aria-label="Project name"><span id="saveStatus">Saved</span></div>
+  <div class="toolbar-center">
+    <button id="undoBtn" title="Undo">↶</button><button id="redoBtn" title="Redo">↷</button>
+    <div class="zoom-control"><select id="zoomSelect"><option>50%</option><option selected>75%</option><option>100%</option><option>125%</option></select><span id="zoomValue">75%</span></div>
+  </div>
+  <div class="top-actions"><button class="button ghost small mobile-props-btn" id="mobilePropsBtn">Properties</button><button class="button ghost small" id="saveBtn">Save</button><button class="button small" id="exportBtn">Export</button></div>
+</header>
+
+<div class="editor-shell">
+  <aside class="editor-left" id="editorLeft">
+    <button class="tool-tab active" data-panel="templates"><span>▦</span><em>Templates</em></button>
+    <button class="tool-tab" data-panel="elements"><span>◇</span><em>Elements</em></button>
+    <button class="tool-tab" data-panel="text"><span>T</span><em>Text</em></button>
+    <button class="tool-tab" data-panel="uploads"><span>▧</span><em>Images</em></button>
+    <div class="left-panel-content" id="leftPanel"></div>
+  </aside>
+
+  <main class="canvas-area">
+    <div class="canvas-stage" id="canvasStage"><div class="design-canvas" id="designCanvas" tabindex="0"></div></div>
+    <div class="ai-command" id="aiCommandBar"><span class="ask-dot">✦</span><input id="aiCommand" placeholder="Ask Clyp to change something…"><button id="aiSend">Send</button></div>
+  </main>
+
+  <aside class="editor-right" id="editorRight">
+    <div class="mobile-sheet-head"><strong>Properties</strong><button id="closePropsBtn">×</button></div>
+    <div class="properties-head"><strong>Properties</strong><button id="duplicateBtn">Duplicate</button></div>
+    <div class="property-empty" id="propertyEmpty"><span>◇</span><strong>Nothing selected</strong><small>Choose an element on the canvas.</small></div>
+    <div class="properties" id="properties" hidden>
+      <label>Position<div class="split-input"><input type="number" id="propX" aria-label="X position"><input type="number" id="propY" aria-label="Y position"></div></label>
+      <label>Size<div class="split-input"><input type="number" id="propW"><input type="number" id="propH"></div></label>
+      <label>Opacity<input type="range" min="0.02" max="1" step="0.01" id="propOpacity"></label>
+
+      <label id="textContentLabel">Text<textarea id="propText" rows="3"></textarea></label>
+      <label id="fontFamilyLabel">Typeface<select id="propFont">
+        <optgroup label="Display"><option>Bebas Neue</option><option>Anton</option><option>Archivo Black</option><option>Barlow Condensed</option><option>League Spartan</option><option>Oswald</option><option>Space Grotesk</option><option>Sora</option></optgroup>
+        <optgroup label="Clean sans"><option>Inter</option><option>Manrope</option><option>Plus Jakarta Sans</option><option>DM Sans</option><option>Poppins</option><option>Montserrat</option><option>Work Sans</option><option>Source Sans 3</option></optgroup>
+        <optgroup label="Editorial"><option>Playfair Display</option><option>DM Serif Display</option><option>Cormorant Garamond</option><option>Libre Baskerville</option><option>Georgia</option></optgroup>
+        <optgroup label="System"><option>Arial Black</option><option>Arial Narrow</option><option>Arial</option><option>Impact</option><option>Trebuchet MS</option><option>Verdana</option><option>Times New Roman</option><option>system-ui</option></optgroup>
+      </select></label>
+      <label id="fontSizeLabel">Font size<input type="number" id="propFontSize"></label>
+      <label id="fontWeightLabel">Weight<select id="propWeight"><option value="400">Regular</option><option value="500">Medium</option><option value="600">Semi Bold</option><option value="700">Bold</option><option value="800">Extra Bold</option><option value="900">Black</option></select></label>
+      <label id="typeSpacingLabel">Type spacing<div class="split-input"><input type="number" id="propTracking" step="0.1" title="Letter spacing"><input type="number" id="propLine" step="0.05" title="Line height"></div></label>
+      <label id="alignLabel">Alignment<select id="propAlign"><option value="left">Left</option><option value="center">Centre</option><option value="right">Right</option></select></label>
+
+      <label id="shapeKindLabel">Shape<select id="propKind"><option value="rect">Rectangle</option><option value="ellipse">Ellipse</option><option value="pill">Pill</option><option value="line">Line</option><option value="triangle">Triangle</option></select></label>
+      <label id="fillTypeLabel">Fill<select id="propFill"><option value="solid">Solid</option><option value="linear">Linear gradient</option></select></label>
+      <label id="primaryColorLabel">Primary colour<input type="color" id="propColor"></label>
+      <label id="secondColorLabel">Gradient<div class="split-input gradient-input"><input type="color" id="propColor2"><input type="number" id="propGradientAngle" min="0" max="360" placeholder="135°"></div></label>
+      <label id="strokeLabel">Border<div class="split-input gradient-input"><input type="color" id="propStrokeColor"><input type="number" id="propStrokeWidth" min="0" max="20" step="0.5" placeholder="0"></div></label>
+      <label id="shadowLabel">Shadow<div class="split-input"><input type="number" id="propShadowOpacity" min="0" max="0.9" step="0.05" placeholder="0"><input type="number" id="propShadowBlur" min="0" max="100" placeholder="24"></div></label>
+
+      <label id="imageFitLabel">Image fit<select id="propImageFit"><option value="cover">Cover frame</option><option value="contain">Fit inside</option></select></label>
+      <label id="imageBlendLabel">Blend mode<select id="propBlend"><option value="normal">Normal</option><option value="multiply">Multiply</option><option value="screen">Screen</option><option value="overlay">Overlay</option><option value="soft-light">Soft light</option></select></label>
+      <label id="imageMaskLabel">Edge treatment<select id="propMask"><option value="none">None</option><option value="fade-bottom">Fade bottom</option><option value="fade-left">Fade left</option><option value="fade-right">Fade right</option><option value="soft-ellipse">Soft ellipse</option></select></label>
+      <label id="imageGradeLabel">Image grade<div class="grade-grid"><span>Brightness<input type="range" min="0.3" max="1.7" step="0.05" id="propBrightness"></span><span>Contrast<input type="range" min="0.4" max="1.8" step="0.05" id="propContrast"></span><span>Saturation<input type="range" min="0" max="1.8" step="0.05" id="propSaturation"></span></div></label>
+      <label id="imageRadiusLabel">Corner radius<input type="number" id="propImageRadius" min="0" max="120" step="1"></label><button class="button ghost small image-auto-button" id="autoBlendBtn" type="button">✦ Auto blend image</button>
+      <button class="danger-link" id="deleteBtn">Delete element</button>
+    </div>
+    <div class="layers-section"><div class="properties-head"><strong>Layers</strong><span id="layerCount">0</span></div><div id="layerList"></div></div>
+  </aside>
+</div>
+<input type="file" id="localImageInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden multiple>
+<div class="toast" id="toast"></div>
+<script src="js/bootstrap.js"></script><script src="js/editor.js"></script>
+</body></html>

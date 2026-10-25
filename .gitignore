@@ -6,3 +6,7 @@ storage/exports/*
 !storage/exports/.gitkeep
 storage/tmp/*
 !storage/tmp/.gitkeep
+storage/video/
+storage/sounds/uploads/
+__pycache__/
+.env.zip

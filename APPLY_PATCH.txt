@@ -1,0 +1,10 @@
+CLYP DESIGN STUDIO V4 PATCH
+
+1. Stop Clyp with Ctrl+C.
+2. Copy the files in this patch into your existing Clyp project, preserving the js/ folder.
+3. DO NOT replace your existing .env. This patch intentionally does not contain .env.
+4. Run: py start_local.py
+5. Open: http://127.0.0.1:8080
+
+No setup_local.py rerun is required if Flask and google-genai are already installed.
+The code defaults CLYP_GEMINI_IMAGE_MODEL to gemini-3.1-flash-image, so your current .env works even if that line is absent.

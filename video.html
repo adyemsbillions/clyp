@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Clyp Video</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="video.css">
+</head>
+<body class="video-body">
+<header class="editor-topbar">
+  <a class="brand compact" href="index.html"><span class="brand-mark">C</span><span>Clyp</span></a>
+  <div class="project-title" id="titleWrap" hidden><input id="projectName" value="Untitled video" aria-label="Video name"><span id="saveStatus">Saved</span></div>
+  <div class="toolbar-center"><span class="video-crumb" id="crumb">Video editor</span></div>
+  <div class="top-actions">
+    <a class="button ghost small" href="video.html" id="libraryLink" hidden>All videos</a>
+    <button class="button small" id="exportBtn" hidden>Export video</button>
+  </div>
+</header>
+
+<!-- Library: upload + recent video projects -->
+<main class="video-library" id="libraryView" hidden>
+  <div class="dash-header"><div><span class="kicker">VIDEO EDITOR</span><h1>Captions, sound and colour.</h1><p class="library-lead">Upload a clip. Clyp writes the captions with AI, adds a background track and colour grades it, then exports an MP4.</p></div></div>
+  <button class="upload-drop video-drop" id="dropZone" type="button">
+    <strong>Choose a video or drop it here</strong>
+    <p>MP4, MOV, M4V, WEBM, MKV or AVI</p>
+    <div class="upload-progress" id="uploadProgress" hidden><i id="uploadBar"></i><span id="uploadText">Uploading…</span></div>
+  </button>
+  <div class="recent-block">
+    <div class="panel-heading"><span>Your videos</span><small id="videoCount"></small></div>
+    <div class="video-grid" id="videoGrid"></div>
+  </div>
+</main>
+
+<!-- Editor -->
+<div class="video-shell" id="editorView" hidden>
+  <aside class="video-left">
+    <nav class="video-tabs">
+      <button class="tool-tab active" data-tab="captions"><span>Aa</span><em>Captions</em></button>
+      <button class="tool-tab" data-tab="sounds"><span>♪</span><em>Sounds</em></button>
+      <button class="tool-tab" data-tab="colour"><span>◐</span><em>Colour</em></button>
+    </nav>
+    <div class="video-panel">
+      <section data-section="captions">
+        <div class="panel-heading"><span>Captions</span><small>Burned into the export</small></div>
+        <label class="switch-row"><input type="checkbox" id="capEnabled"> Show captions</label>
+        <div class="ai-box">
+          <button class="button full" id="transcribeBtn" type="button">✦ Generate captions with AI</button>
+          <div class="inline-fields">
+            <label>Words per caption<select id="capWords"><option>2</option><option>3</option><option>4</option><option selected>5</option><option>6</option><option>7</option></select></label>
+            <button class="button ghost small" id="resplitBtn" type="button" title="Re-split the AI transcript with the new word count">Re-split</button>
+          </div>
+        </div>
+        <div class="field-label">Style</div>
+        <div class="style-grid" id="capStyles"></div>
+        <div class="inline-fields">
+          <label>Position<select id="capPosition"><option value="bottom">Bottom</option><option value="middle">Middle</option><option value="top">Top</option></select></label>
+          <label>Size <output id="capSizeOut"></output><input type="range" id="capSize" min="50" max="160" step="5"></label>
+        </div>
+        <label class="switch-row"><input type="checkbox" id="capHighlight"> <span id="capHighlightLabel">Highlight words</span></label>
+        <label class="colour-row"><span id="capColorLabel">Highlight colour</span><input type="color" id="capColor"></label>
+        <p class="hint" id="capHint"></p>
+        <div class="panel-heading lines-heading"><span>Lines</span><button class="text-btn" id="addCaption" type="button">+ Add at playhead</button></div>
+        <div class="caption-list" id="captionList"></div>
+      </section>
+
+      <section data-section="sounds" hidden>
+        <div class="panel-heading"><span>Background sound</span><small>Mixed under your audio</small></div>
+        <div class="sound-list" id="soundList"></div>
+        <button class="button ghost full" id="uploadSoundBtn" type="button">Upload your own track</button>
+        <p class="hint">Only upload music you have the rights to use.</p>
+        <label>Music volume <output id="musicVolOut"></output><input type="range" id="musicVol" min="0" max="100"></label>
+        <label>Original video sound <output id="origVolOut"></output><input type="range" id="origVol" min="0" max="150"></label>
+        <label>Start the track at (seconds)<input type="number" id="musicStart" min="0" step="0.5"></label>
+        <label class="switch-row"><input type="checkbox" id="musicDuck"> Lower the music while people talk</label>
+      </section>
+
+      <section data-section="colour" hidden>
+        <div class="panel-heading"><span>Colour grade</span><small>Presets + fine-tuning</small></div>
+        <div class="preset-grid" id="gradePresets"></div>
+        <div class="slider-stack" id="gradeSliders"></div>
+        <div class="inline-fields"><button class="button ghost small" id="gradeReset" type="button">Reset sliders</button></div>
+        <p class="hint">The player shows a fast live preview. Use <b>Check exact frame</b> to see a frame exactly as it will export.</p>
+      </section>
+    </div>
+  </aside>
+
+  <main class="video-stage" id="stage">
+    <div class="player-wrap" id="playerWrap">
+      <video id="player" playsinline preload="metadata"></video>
+      <div class="vignette" id="vignette"></div>
+      <div class="caption-overlay" id="captionOverlay"></div>
+      <img class="exact-frame" id="exactFrame" alt="Exact export frame" hidden>
+      <div class="exact-badge" id="exactBadge" hidden>Exact export frame · <button type="button" id="exactClose">Back to live preview</button></div>
+    </div>
+    <div class="stage-bar">
+      <button class="icon-btn play-btn" id="playBtn" type="button" aria-label="Play">▶</button>
+      <span class="timecode" id="timecode">0:00.0 / 0:00.0</span>
+      <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Seek">
+      <button class="button ghost small" id="exactBtn" type="button">Check exact frame</button>
+    </div>
+  </main>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs id="gradeDefs"></defs></svg>
+<audio id="musicPreview" loop preload="auto"></audio>
+<audio id="soundSample" preload="none"></audio>
+<input type="file" id="videoInput" accept="video/*,.mkv,.avi" hidden>
+<input type="file" id="soundInput" accept="audio/*" hidden>
+<div class="modal" id="exportModal" aria-hidden="true"><div class="modal-card" id="exportCard"></div></div>
+<div class="toast" id="toast"></div>
+<script src="js/video.js"></script>
+</body>
+</html>

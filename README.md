@@ -1,142 +1,146 @@
-# Clyp — AI One-Click Video Editor
+# Clyp — Design Studio + Video Editor
 
-Clyp is a PHP 8.3 video studio that turns one raw MP4 or MOV file into a polished social-ready edit. It combines Gemini transcription and content generation with a real FFmpeg editing pipeline.
+Clyp has two main features:
 
-## What the one-click editor does
+1. **Design studio** — AI-art-directed, editable flyers and posters (`app.html`, `editor.html`).
+2. **Video editor** — captions, background sound and colour grading, exported as MP4 (`video.html`).
 
-- Detects long silent sections from the audio waveform and removes dead air
-- Maps filler words such as “um”, “uh”, “erm”, “you know” and “I mean” to their timestamps and cuts them
-- Measures footage brightness and saturation before applying corrective colour grading
-- Rebuilds the timeline with short automatic transitions
-- Creates subtle digital punch-ins and reframed cutaways from the source footage
-- Selects a matching licensed sound from the local library
-- Ducks music beneath speech and raises it during quieter sections
-- Normalises voice loudness and limits the final mix
-- Burns premium animated captions with word-by-word highlighting
-- Generates hooks, platform posts, hashtags and a title
-- Exports H.264/AAC MP4 with fast-start playback
+The home page (`index.html`) links to both.
 
-The current “smart cutaway” feature reframes and punches into the uploaded footage. It does not fetch third-party B-roll or generate external footage.
+This build keeps the fast local development architecture:
 
-## Caption designs
+- Browser UI on `http://127.0.0.1:8080`
+- Python web proxy
+- Python AI service on `http://127.0.0.1:8100`
+- Gemini design reasoning
+- Browser `localStorage` for projects
+- No registration/login gate
+- No MySQL/XAMPP dependency in the active workflow
 
-- Impact
-- Clean Pro
-- Executive
-- Bold Glow
-- Smart Box
-- Pop Bounce
+## Start
 
-Every design uses animated word highlighting in the exported video.
-
-## Requirements
-
-- PHP 8.3+ with PDO, cURL, fileinfo and mbstring
-- FFmpeg and FFprobe available in PATH
-- FFmpeg filters: `ass`, `xfade`, `sidechaincompress`, `silencedetect`, `signalstats`
-- SQLite for local use or MySQL 8+ for production
-- Gemini API key for transcription and social content
-
-## Windows quick start
-
-From PowerShell:
+On the Windows machine used for this project:
 
 ```powershell
-cd C:\Users\adyem\Desktop\clyp
-.\setup.bat
-.\configure-gemini.bat
-.\test-gemini.bat
-.\start.bat
+py -m pip install -r requirements.txt
+py start_local.py
 ```
 
-Open `http://localhost:8000`.
+The video editor also needs FFmpeg. Put it on `PATH` or set `CLYP_FFMPEG_PATH` / `CLYP_FFPROBE_PATH` in `.env`.
+Gemini reads `CLYP_GEMINI_API_KEY`, or `GEMINI_API_KEY` from the older PHP build's `.env`.
 
-PowerShell requires the `./` or `.\` prefix for files in the current directory. The included Python commands use `py`, not `python`.
+Leave that terminal open and visit `http://127.0.0.1:8080`.
 
-## One-click workflow
+## What is new in Design Intelligence V3
 
-1. Upload a video.
-2. Generate captions with Gemini.
-3. Open **Auto edit**.
-4. Choose an editing rhythm and colour direction.
-5. Keep or disable silence cutting, filler removal, punch-ins, transitions and automatic music.
-6. Click **Create one-click edit**.
-7. Review the plan summary, caption design and soundtrack.
-8. Open **Export** and click **Render polished video**.
+### Clyp design brain
 
-## Gemini configuration
+`design_intelligence.py` is now a first-class product asset. It gives Gemini a professional art-direction playbook covering:
 
-The default model is:
+- single-message communication
+- three-level hierarchy
+- grid/alignment/proximity
+- negative space and balance
+- typography pairing and sizing
+- colour harmony and palette restraint
+- contrast/readability
+- RGB versus print/CMYK awareness
+- gradients
+- imagery and text-on-photo treatment
+- purposeful shapes and graphic elements
+- shadows, strokes and effects
+- category-specific art direction
+- failure modes Clyp should avoid
+- an internal pre-output design QA sequence
 
-```env
-GEMINI_MODEL=gemini-3.5-flash
-```
+The AI is not being fine-tuned at the model-weight level. Clyp is improving it through a strong system instruction, few-shot art-direction patterns, a richer editable design vocabulary, Python validation and a local quality audit.
 
-Configure the key using:
+### Advanced editable primitives
 
-```powershell
-.\configure-gemini.bat
-```
+Clyp can now render AI-created:
 
-Clyp extracts mono 16 kHz MP3 audio in fixed ten-minute chunks. The Windows build does not use FFmpeg percent-based segment filename templates.
+- rectangles
+- ellipses/circles
+- pills/badges
+- lines/dividers
+- triangles/wedges
+- solid fills
+- linear gradients
+- borders/strokes
+- soft shadows
+- text shadows
+- text outlines
+- image brightness/contrast/saturation/blur
 
-## Local database
+These remain structured editable layers.
 
-SQLite works without MySQL:
+### Better colour handling
 
-```env
-DB_DRIVER=sqlite
-DB_SQLITE_PATH=storage/clyp.sqlite
-```
+The design planner now chooses a named harmony strategy:
 
-Clyp creates and upgrades missing tables and columns automatically. To run the installer manually:
+- monochromatic
+- analogous
+- complementary
+- split-complementary
+- triadic
 
-```powershell
-php .\scripts\install.php
-```
+It also returns dominant/support/accent/light/dark palette roles. Python preserves this palette metadata and calculates a lightweight quality summary including font-family count, colour count, tiny text and conservative contrast checks.
 
-## MySQL production configuration
+### Better manual Elements panel
 
-```env
-DB_DRIVER=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=clyp
-DB_USERNAME=root
-DB_PASSWORD=your_password
-```
+The editor now exposes professional primitives directly:
 
-Then run:
+- Rectangle
+- Circle
+- Pill
+- Line
+- Gradient
+- Triangle
+- Frame
+- Readability Overlay
 
-```powershell
-php .\scripts\install.php
-```
+The Properties panel exposes fill type, second gradient colour, gradient angle, border and shadow controls where relevant.
 
-## Auto-editor tuning
+### Typography
 
-```env
-AUTO_SILENCE_DB=-34
-AUTO_SILENCE_MIN=0.48
-```
+The editor can use these web/display faces when online, with system fallbacks when unavailable:
 
-Lower `AUTO_SILENCE_DB` to require quieter audio before a section is treated as silence. Increase `AUTO_SILENCE_MIN` to preserve longer pauses.
+- Inter
+- Manrope
+- Bebas Neue
+- Oswald
+- Playfair Display
 
-## Verify the installation
+Clyp is instructed to use no more than two font families in normal flyer work unless a third tiny decorative accent is genuinely justified.
 
-```powershell
-php .\scripts\check.php
-```
+## Reconstruction remains trace-first
 
-The checker validates PHP extensions, storage permissions, FFmpeg, FFprobe and all filters required by the automatic editor.
+Reconstruction V2 behaviour is preserved:
 
-## Storage and payments
+- source aspect ratio is preserved
+- complex source photography/logos/icons/effects can stay as image crop layers
+- editable text stays editable
+- simple geometry stays editable
+- source matching is prioritised over redesign
 
-Local storage works immediately. Cloudflare R2 mirroring and Paystack subscription verification remain optional and are configured through `.env`.
+## Current deliberate limitation
 
-## Production notes
+From-scratch AI design can art-direct professional layouts, colour, type and graphic primitives, but automatic generation of a new hero photograph/illustration is not yet turned on in this patch. That should be a separate image-asset generation step so Clyp can place the resulting asset as an editable/croppable image layer rather than flattening the entire flyer.
 
-- Point the server document root to `/public`.
-- Use HTTPS, MySQL and `APP_DEBUG=false`.
-- Run rendering through background workers for production traffic.
-- Keep uploaded videos and API keys private.
-- Only distribute music and footage for which you have the required rights.
+This separation is intentional: **design planning and image synthesis are different jobs**.
+
+
+## V4.1 — mandatory imagery fix
+When the user's brief explicitly asks for photography, people, a model, illustration, or another hero visual, Clyp now treats the image as mandatory. The design endpoint will automatically generate and insert a full-bleed hero asset even if the layout planner forgets to return an image layer. If the image model fails, the request fails with the actual image error instead of silently returning a plain typography-only flyer.
+
+
+## Video editor
+
+`video_service.py` adds the video editor to the web service. Projects are stored on disk in `storage/video/<id>/`, because videos are too large for browser storage.
+
+- **Captions.** *Generate captions with AI* extracts the audio with FFmpeg and sends it to Gemini (`/transcribe` in `ai_service.py`). The transcript is split into short lines that you can edit. The default **Signature** style shows words one at a time as they're spoken, left-aligned in the lower third. The key word in each line is bigger and heavier, and you can choose it by wrapping it in `*asterisks*`. Six karaoke-style presets (Viral, Professional, and others) are also included.
+- **Sounds.** Pick a library track from `storage/sounds/` or upload your own to `storage/sounds/uploads/`. You can set the music volume, the original audio level and the start offset, and lower the music automatically while people talk.
+- **Colour grading.** Choose a preset (Vivid, Warm, Cool, Cinematic, Vintage, Moody, Black & white), then adjust brightness, contrast, saturation, temperature, tint and vignette. The player shows a fast live preview, and *Check exact frame* renders one frame through FFmpeg exactly as the export will look.
+- **Export.** Renders to an H.264/AAC MP4 in the background with a progress bar, then offers it for download.
+
+The older PHP auto-editor in `app/` and `public/` is no longer used.

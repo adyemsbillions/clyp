@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Clyp Design</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="app-body">
+<aside class="app-sidebar">
+  <a class="brand" href="index.html"><span class="brand-mark">C</span><span>Clyp</span></a>
+  <nav><a href="index.html"><span>⌂</span>Home</a><a class="selected" href="app.html"><span>◇</span>Design</a><a href="templates.html"><span>▦</span>Templates</a><a href="video.html"><span>▶</span>Video</a></nav>
+</aside>
+<main class="dashboard">
+  <div class="dash-header"><div><span class="kicker" id="todayLabel"></span><h1>Design studio</h1></div></div>
+  <div class="action-grid">
+    <button class="action-card primary-action" data-action="ai"><span class="action-icon">✦</span><div><strong>Create with AI</strong><p>Describe it; Clyp art-directs an editable design.</p></div><b class="arrow">→</b></button>
+    <button class="action-card" data-action="upload"><span class="action-icon">▧</span><div><strong>Edit a flyer</strong><p>Upload a design and rebuild it as editable layers.</p></div><b class="arrow">→</b></button>
+    <button class="action-card" data-action="template"><span class="action-icon">▦</span><div><strong>Start from a template</strong><p>Twelve editable starting points.</p></div><b class="arrow">→</b></button>
+  </div>
+  <div class="recent-block">
+    <div class="panel-heading"><span>Recent designs</span><button class="text-btn" id="refreshProjects" type="button">Refresh</button></div>
+    <div class="recent-grid" id="recentProjects"></div>
+  </div>
+</main>
+<div class="modal" id="createModal" aria-hidden="true"><div class="modal-card"><button class="modal-close" data-close aria-label="Close">×</button><div id="modalContent"></div></div></div>
+<input type="file" id="flyerUpload" accept="image/png,image/jpeg,image/webp,application/pdf" hidden>
+<script src="js/bootstrap.js"></script><script src="js/dashboard.js"></script>
+</body>
+</html>
